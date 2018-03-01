@@ -75,7 +75,7 @@ if ($G::dump_args) {
 # XXX hash that we can pass verbatim here
 open_link();
 
-sendmail($opts->{from}, $opts->{to}, $opts->{cc}, $opts->{helo}, $opts->{data},
+sendmail($opts->{from}, $opts->{to}, $opts->{bcc}, $opts->{cc}, $opts->{helo}, $opts->{data},
          $opts->{a_user}, $opts->{a_pass}, $opts->{a_type});
 
 teardown_link();
@@ -174,6 +174,7 @@ sub sendmail {
 	my $from    = shift; # envelope-from
 	my $to      = shift; # envelope-to
 	my $cc      = shift; # envelope-cc
+	my $bcc     = shift; # envelope-bcc
 	my $helo    = shift; # who am I?
 	my $data    = shift; # body of message (content after DATA command)
 	my $a_user  = shift; # what user to auth with?
@@ -323,6 +324,9 @@ sub sendmail {
 	do_smtp_rcpt($cc);
 
 
+	do_smtp_rcpt($bcc);
+	
+	
 	# QUIT here if the user has asked us to do so
 	do_smtp_quit(1, 0) if ($G::quit_after eq 'rcpt');
 
@@ -1503,6 +1507,9 @@ sub get_option_struct {
 		  okey => 'mail_to',                          type => 'scalar', },
 		{ opts => ['c', 'cc'],                        suffix => ':s',
 		  okey => 'mail_cc',                          type => 'scalar', },
+		 #envelope-bcc address 
+		 { opts => ['bcc'],                        suffix => ':s',
+		   okey => 'mail_bcc',                          type => 'scalar', },
 		# (h)elo string
 		{ opts => ['h', 'helo', 'ehlo', 'lhlo'],      suffix => ':s',
 		  okey => 'mail_helo',                        type => 'scalar', },
@@ -2140,6 +2147,7 @@ sub process_args {
 
 	$n{cc} = $o->{mail_cc};
 	
+	$n{bcc} = $o->{mail_bcc};
 	# try to catch obvious -s/-li/-4/-6 errors as soon as possible.  We don't actually do any DNS
 	# lookups ourselves, so errors like -s being a domain with only A RRs and -li being a domain 
 	# with only AAAA RRs, or -s being an ipv6 and -li being a domain with only A RRs, will
@@ -2310,6 +2318,7 @@ sub process_args {
 		$n{data} =~ s/%BODY%/$body/g;
 		$n{data} =~ s/%B/$body/g if ($O{use_old_data_tokens});
 		push(@{$o->{add_header}}, "Cc: $n{cc}") if $n{cc};
+		push(@{$o->{add_header}}, "Bcc: $n{bcc}") if $n{bcc};
 		if (defined($o->{header}) && ref($o->{header}) eq 'ARRAY' && scalar(@{$o->{header}})) {
 			foreach my $l (map { split(/\\n/) } @{$o->{header}}) {
 				if (my($h) = $l =~ /^([^:]+):/) {
@@ -3097,7 +3106,12 @@ Use argument as envelope-sender for email, or prompt user if no argument specifi
 
 =item -c, --cc [email-address[,email-address,...]]
 
-Tells swaks to use argument(s) as the envelope-recipient for the email in addition to those from --to, the recipient domain is needed to determine routing the domain of the last recipient provided is used. Also add these as a Cc header.
+Tells swaks to use argument(s) as the envelope-recipient for the email in addition to those from --to, the recipient domain is needed to determine routing the domain of the last recipient provided is used. Also add these as a Cc header.is needed to determine routing the domain of the last recipient provided is used. Also add these as a Cc header.
+
+
+=item --bcc [email-address[,email-address,...]]
+
+Tells swaks to use argument(s) as the envelope-recipient for the email in addition to those from --to, the recipient domain is needed to determine routing the domain of the last recipient provided is used. Also add these as a bcc header.
 
 =item --ehlo, --lhlo, -h, --helo [helo-string]
 
